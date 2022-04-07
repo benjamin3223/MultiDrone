@@ -121,20 +121,34 @@ async def run_outdoor(mission, telemetry):
 
     mission_items = []
     for waypoint in mission:
-        
-        mission_items.append(MissionItem(waypoint[0],
-                                         waypoint[1],
-                                         waypoint[2],
-                                         1,
-                                         True,
-                                         float('nan'),
-                                         float('nan'),
-                                         MissionItem.CameraAction.NONE,
-                                         float('nan'),
-                                         float('nan'),
-                                         float('nan'),
-                                         float('nan'),
-                                         float('nan')))
+
+        if address == "udp://:14540":
+            mission_items.append(MissionItem(waypoint[0],
+                                             waypoint[1],
+                                             waypoint[2],
+                                             1,
+                                             True,
+                                             float('nan'),
+                                             float('nan'),
+                                             MissionItem.CameraAction.NONE,
+                                             float('nan'),
+                                             float('nan'),
+                                             float('nan'),
+                                             float('nan')))
+        else:
+            mission_items.append(MissionItem(waypoint[0],
+                                             waypoint[1],
+                                             waypoint[2],
+                                             1,
+                                             True,
+                                             float('nan'),
+                                             float('nan'),
+                                             MissionItem.CameraAction.NONE,
+                                             float('nan'),
+                                             float('nan'),
+                                             float('nan'),
+                                             float('nan'),
+                                             float('nan')))
 
     mission_plan = MissionPlan(mission_items)
 
@@ -145,12 +159,17 @@ async def run_outdoor(mission, telemetry):
 
     print("-- Arming")
     await drone.action.arm()
+    async for is_armed in drone.telemetry.armed():
+        if is_armed is True:
+            print("The drone is armed ")
+            break
 
     print("-- Starting mission")
     await drone.mission.start_mission()
 
     await termination_task
-    
+
+
 async def print_mission_progress(drone):
     async for mission_progress in drone.mission.mission_progress():
         print(f"Mission progress: "

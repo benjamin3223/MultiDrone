@@ -115,6 +115,9 @@ class Grid(FigureCanvas):
         self.l.set_visible(False)
         plt.draw()
 
+    def set_snap(self, snap):
+        self.rectdict['round_to_int'] = snap
+
     def increase_size(self):
         self.h = self.h * 1.25
         self.w = self.w * 1.25

@@ -241,9 +241,11 @@ class PlannerView(QMainWindow):
         self.gridControls.addSpacerItem(QSpacerItem(50, 10))
 
         self.snapCheck = QCheckBox()
+        self.snapCheck.setChecked(True)
         self.snapCheck.setLayoutDirection(Qt.LeftToRight)
         self.snapCheck.setText("     Snap to Grid")
         self.blueprintCheck = QCheckBox()
+        self.blueprintCheck.setChecked(True)
         self.blueprintCheck.setLayoutDirection(Qt.LeftToRight)
         self.blueprintCheck.setText("     Show Blueprints")
         self.gridControls.addWidget(self.snapCheck)

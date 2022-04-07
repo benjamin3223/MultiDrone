@@ -205,7 +205,7 @@ class PlannerControl:
         self._view.altitudeInputButtonGrid.clicked.connect(partial(self._setAltitude))
         self._view.zoomIncrease.clicked.connect(partial(self._view.grid.chart.increase_size))
         self._view.zoomDecrease.clicked.connect(partial(self._view.grid.chart.decrease_size))
-
+        self._view.snapCheck.clicked.connect(partial(self._view.grid.chart.set_snap))
 
 """
 Model Functions & Classes.
@@ -248,8 +248,8 @@ class BatteryWorker(QObject):
         try:
             loop = asyncio.new_event_loop()
             while True:
-                loop.run_until_complete(get_telemetry(telemetry))
-                # sleep(1)
+                loop.run_until_complete(get_telemetry(telemetry, self.outdoor))
+                sleep(1)
                 if telemetry[2] and self.outdoor and not sent:
                     # print(telemetry[2].longitude_deg)
                     self.location.emit(telemetry[2].latitude_deg, telemetry[2].longitude_deg)
