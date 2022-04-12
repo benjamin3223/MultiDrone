@@ -20,7 +20,7 @@ class WebEnginePage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, msg, line, source_id):
         print(msg)  # Check js errors
         if 'coordinates' in msg:
-            self.parent.handleConsoleMessage(msg)
+            self.parent.handleClick(msg)
 
 
 class FoliumDisplay(QWidget):
@@ -161,6 +161,26 @@ class FoliumDisplay(QWidget):
         self.webView.setPage(page)
         self.webView.setHtml(data.getvalue().decode())  # give html of folium map to webengine
         self.layout.insertWidget(0, self.webView)
+        
+    def addMarker(self, lat, lng, alt):
+
+        folium.Marker(
+            [lat, lng],
+            popup=f"<i><h6>Waypoint {self.waypoint_count}</h6>"
+                  f"N:{round(lat, 8)}<br>"
+                  f"W:{round(lng, 8)}<br>\n"
+                  f"Altitude: {alt}m</i>",
+            tooltip=f"Waypoint {self.waypoint_count}"
+        ).add_to(self.m)
+
+        self.waypoints.append((lat, lng))
+
+        folium.PolyLine(
+            self.waypoints
+        ).add_to(self.m)
+
+        self.layout.removeWidget(self.webView)
+        self.refreshMap()
 
     @staticmethod
     def addCustomJS(map_object):
@@ -177,34 +197,12 @@ class FoliumDisplay(QWidget):
 
         return map_object
 
-    def handleConsoleMessage(self, msg):
+    def handleClick(self, msg):
         data = json.loads(msg)
 
         if data['click'] == "one":
             lat = data['coordinates']['lat']
             lng = data['coordinates']['lng']
-            # alt = self.altitude.toPlainText()
-            # alt
-            coords = f"latitude: {lat} longitude: {lng}"
             self.waypoint_count += 1
-            # self.label.setText(coords)
 
-            self.waypoints.append((lat, lng))
             self.newWaypoint.emit(float(lat), float(lng))
-
-            layer = folium.TileLayer(
-
-            )
-
-            folium.Marker(
-                [lat, lng],
-                popup=f"<i>Waypoint {self.waypoint_count}   </i>",
-                tooltip=f"Waypoint {self.waypoint_count}"
-            ).add_to(self.m)
-
-            folium.PolyLine(
-                self.waypoints
-            ).add_to(self.m)
-
-        self.layout.removeWidget(self.webView)
-        self.refreshMap()

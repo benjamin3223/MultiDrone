@@ -15,7 +15,7 @@ from mavsdk.mission import (MissionItem, MissionPlan)
 
 
 address = "udp://:14540"
-address = "serial://COM6:56000"  # Not sure if this is right...
+# address = "serial://COM6:56000"  # Not sure if this is right...
 
 
 async def connect(drone):

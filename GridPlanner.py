@@ -14,7 +14,8 @@ class Grid(FigureCanvas):
 
     def __init__(self, parent):
 
-        img = plt.imread("warehouse2.png")
+        self.current_path = "warehouse2.png"
+        img = plt.imread(self.current_path)
 
         self.x = 36
         self.y = 21
@@ -26,7 +27,6 @@ class Grid(FigureCanvas):
         self.f.patch.set_alpha(0.0)
         self.ax = self.f.add_subplot()
         self.ax.patch.set_alpha(0.0)
-        self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=0.95)
         # self.ax.set_position([0.2, 0.2, 0.6, 0.6])
 
         super().__init__(self.f)
@@ -60,6 +60,8 @@ class Grid(FigureCanvas):
             points=[],
             round_to_int=True)
 
+        self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=0.95)
+
         # connect the callbacks to the figure
         self.f.canvas.mpl_connect('button_press_event', self.on_click)
         # self.f.canvas.mpl_connect('motion_notify_event', self.on_move)
@@ -70,15 +72,15 @@ class Grid(FigureCanvas):
             return
         if event.button == 1:  # (e.g. left-click)
             if self.rectdict['round_to_int']:
-                self.rectdict['points'] += [[round(event.xdata), round(event.ydata)]]
+                # self.rectdict['points'] += [[round(event.xdata), round(event.ydata)]]
                 self.newWaypoint.emit(float(round(event.xdata)), float(round(event.ydata)))
             else:
-                self.rectdict['points'] += [[event.xdata, event.ydata]]
+                # self.rectdict['points'] += [[event.xdata, event.ydata]]
                 self.newWaypoint.emit(float(event.xdata), float(event.ydata))
 
         elif event.button == 3:  # (e.g. right-click)
             if len(self.rectdict['points']) >= 1:
-                self.rectdict['points'] = self.rectdict['points'][:-1]
+                # self.rectdict['points'] = self.rectdict['points'][:-1]
                 self.removeWaypoint.emit()
                 plt.draw()
 
@@ -110,10 +112,32 @@ class Grid(FigureCanvas):
 
         plt.draw()
 
+    def add_point(self, x, y):
+        self.rectdict['points'] += [[x, y]]
+
+    def remove_point(self):
+        self.rectdict['points'] = self.rectdict['points'][:-1]
+
     def clear_plot(self):
         self.rectdict['points'] = []
         self.l.set_visible(False)
         plt.draw()
+
+    def change_image(self, path):
+        self.current_path = path
+        img = plt.imread(path)
+        self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=1)
+        plt.draw()
+
+    def set_blank(self, show):
+        if show:
+            img = plt.imread(self.current_path)
+            self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=1)
+            plt.draw()
+        else:
+            img = plt.imread("blank.png")
+            self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=1)
+            plt.draw()
 
     def set_snap(self, snap):
         self.rectdict['round_to_int'] = snap

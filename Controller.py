@@ -1,10 +1,11 @@
 
 from functools import partial
 from time import sleep
-from threading import Thread
+import os
 import asyncio
 
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from PyQt5.QtWidgets import QFileDialog
 
 from drone_functions import (
     run_indoor,
@@ -69,7 +70,7 @@ class PlannerControl:
         self.thread.start()
 
         # Final resets
-        self._view.connectButton.setEnabled(False)
+        # self._view.connectButton.setEnabled(False)
         self.thread.finished.connect(
             lambda: self._view.connectButton.setEnabled(True)
         )
@@ -83,7 +84,7 @@ class PlannerControl:
         if ip[1]:
             wp, wp_str, wp_text = formatInput(ip[0], self._view.outdoor)
             if not wp:
-                self._view.errorDialog("Poorly formatted input, please try again.", None)
+                self._view.errorDialog("Poorly formatted input. Please try again.", None)
             else:
                 self.mission_str += wp_str
                 self.mission.append(wp)
@@ -91,11 +92,29 @@ class PlannerControl:
 
     def _newWaypoint(self, latitude, longitude):
         altitude = self._view.altitudeInput.text()
-        self.outdoor_mission.append([float(latitude), float(longitude), float(altitude)])
+        altitude_fl = checkAltitude(altitude)
+
+        if altitude_fl == -1:
+            self._view.errorDialog("Poorly formatted altitude input. Make sure altitude is set to be a number.", None)
+            return
+        if not altitude_fl:
+            self._view.errorDialog("Altitude value not valid. Make sure altitude is set between 1 & 20 metres.", None)
+            return
+
+        self.outdoor_mission.append([float(latitude), float(longitude), float(altitude_fl)])
+        self._view.map.addMarker(latitude, longitude, altitude_fl)
 
     def _newIndoorWaypoint(self, x, y):
         altitude = self._view.altitudeInputGrid.text()
-        altitude_fl = float(altitude)
+        altitude_fl = checkAltitude(altitude)
+
+        if altitude_fl == -1:
+            self._view.errorDialog("Poorly formatted altitude input. Make sure altitude is set to be a number.", None)
+            return
+        if not altitude_fl:
+            self._view.errorDialog("Altitude value not valid. Make sure altitude is set between 1 & 20 metres.", None)
+            return
+
         if altitude_fl > 0:
             altitude_fl = -altitude_fl
         if not self.indoor_mission:
@@ -108,9 +127,11 @@ class PlannerControl:
             relative_y = y - self.relative_start_y
 
         self.indoor_mission.append([float(relative_x), float(relative_y), altitude_fl, 0.0])
+        self._view.grid.chart.add_point(x, y)
 
     def _removeIndoorWaypoint(self):
         self.indoor_mission = self.indoor_mission[:-1]
+        self._view.grid.chart.remove_point()
 
     def _clearMission(self):
         """Clear current mission."""
@@ -177,7 +198,7 @@ class PlannerControl:
 
     def _emptyMissionError(self, status):
         if not status:
-            self._view.errorDialog("Mission is empty please add at least one waypoint.", None)
+            self._view.errorDialog("Mission is empty. Please add at least one waypoint.", None)
 
     def _changeMissionMode(self):
         if self._view.outdoor:
@@ -188,11 +209,37 @@ class PlannerControl:
             self._view.outdoor = True
 
     def _setAltitude(self):
+
+        altitude = self._view.altitudeInput.text()
+        altitude_fl = checkAltitude(altitude)
+
+        if altitude_fl == -1:
+            self._view.errorDialog("Poorly formatted altitude input. Make sure altitude is set to be a number.", None)
+            return
+        if not altitude_fl:
+            self._view.errorDialog("Altitude value not valid. Make sure altitude is set between 1 & 20 metres.", None)
+            return
+
         self._view.changeAltitudeFocus()
+
+    def _updateBlueprints(self):
+        uploadDialog = QFileDialog.getOpenFileName(self._view, 'Select Your Blueprint Image', os.getcwd(),
+                                                   'Image files (*.jpg *.png)')
+        if uploadDialog[1]:
+            dimensionsInput = self._view.blueprintDialog()
+            if dimensionsInput[1]:
+                dimensions = formatDimensions(dimensionsInput[0])
+                if dimensions:
+                    path = uploadDialog[0]
+                    self._view.grid.chart.change_image(path)
+                    self._view.setDimensions(dimensions)
+                else:
+                    self._view.errorDialog("Poorly formatted dimensions input. Make sure 2 numbers are entered for "
+                                           "width and height separated by a comma.", None)
 
     def _connectSignals(self):
         """Connect signals and slots."""
-        self._view.buttons["Add Waypoint"].clicked.connect(partial(self._addWaypoint))
+        self._view.buttons[" Add Waypoint"].clicked.connect(partial(self._addWaypoint))
         self._view.buttons["Clear Mission"].clicked.connect(partial(self._clearMission))
         self._view.buttons["Run Mission  "].clicked.connect(partial(self._runMission))
         self._view.connectButton.clicked.connect(partial(self._threadTest))
@@ -206,6 +253,13 @@ class PlannerControl:
         self._view.zoomIncrease.clicked.connect(partial(self._view.grid.chart.increase_size))
         self._view.zoomDecrease.clicked.connect(partial(self._view.grid.chart.decrease_size))
         self._view.snapCheck.clicked.connect(partial(self._view.grid.chart.set_snap))
+        self._view.blueprintCheck.clicked.connect(partial(self._view.grid.chart.set_blank))
+        self._view.missionGripperButton.clicked.connect(partial(self._view.setGripperRemove))
+        self._view.missionGripperButtonRemove.clicked.connect(partial(self._view.setGripperAdd))
+        self._view.missionSeedButton.clicked.connect(partial(self._view.setSeederRemove))
+        self._view.missionSeedButtonRemove.clicked.connect(partial(self._view.setSeederAdd))
+        self._view.blueprintUpload.clicked.connect(partial(self._updateBlueprints))
+
 
 """
 Model Functions & Classes.
@@ -235,7 +289,7 @@ class Worker(QObject):
 
 class BatteryWorker(QObject):
     finished = pyqtSignal()
-    progress = pyqtSignal(float, bool)  #, float, float)
+    progress = pyqtSignal(float, bool)
     armed = pyqtSignal(bool)
     location = pyqtSignal(float, float)
 
@@ -305,19 +359,17 @@ def getBatteryLevel():
         return e
 
 
-# Second option for running a mission by using imported functions.
-def runMission(mission, outdoor):
-    if mission == []:
-        return False
-    # asyncio.set_event_loop(asyncio.new_event_loop())
-    loop = asyncio.get_event_loop()
-    print("Loop resolved.")
-    if outdoor:
-        loop.run_until_complete(run_outdoor(mission))
+def checkAltitude(altitude):
+
+    try:
+        altitude_fl = float(altitude)
+    except:
+        return -1
+
+    if 0.9 < altitude_fl < 20:
+        return altitude_fl
     else:
-        loop.run_until_complete(run_indoor(mission))
-    print("Mission Complete")
-    return True
+        return 0
 
 
 # Check and format input for adding waypoint.
@@ -348,18 +400,23 @@ def formatInput(waypoint_str, outdoor):
     return wp, wp_str, wp_text
 
 
-class ThreadWithReturnValue(Thread):
+# Check and format input for adding waypoint.
+def formatDimensions(dimensions_str):
+    try:
+        dimensions_arr = dimensions_str.split(',')
+    except:
+        print("split")
+        return []
 
-    def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs={}, Verbose=None):
-        Thread.__init__(self, group, target, name, args, kwargs)
-        self._return = None
+    n = len(dimensions_arr)
+    if not n == 2:
+        print("number")
+        return []
 
-    def run(self):
-        print(type(self._target))
-        if self._target is not None:
-            self._return = self._target(*self._args, **self._kwargs)
+    try:
+        dimensions = [float(dimensions_arr[0]), float(dimensions_arr[1])]
+    except:
+        print("float")
+        return []
 
-    def join(self, *args):
-        Thread.join(self, *args)
-        return self._return
+    return dimensions
