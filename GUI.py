@@ -4,7 +4,7 @@ from GridPlanner import GridWidget
 
 # Import QApplication and the required widgets from PyQt5.QtWidgets
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
-from PyQt5.QtWidgets import QInputDialog, QTextEdit, QSpacerItem, QFrame
+from PyQt5.QtWidgets import QInputDialog, QTextEdit, QSpacerItem, QFrame, QDialog, QMessageBox
 from PyQt5.QtWidgets import QHBoxLayout
 from PyQt5.QtWidgets import QGroupBox
 from PyQt5.QtWidgets import QLineEdit
@@ -46,6 +46,7 @@ class PlannerView(QMainWindow):
         self._createModuleController()
         self._createMainContent()
 
+    """Creating top bar for connect button, drop-down options and drone status info."""
     def _createTopBar(self):
 
         self.topBar = QHBoxLayout()
@@ -56,11 +57,6 @@ class PlannerView(QMainWindow):
         self.connectButton.setIcon(QIcon("connect4.png"))
         self.topBar.addWidget(self.connectButton)
         self.topBar.addSpacerItem(QSpacerItem(20, 10))
-
-        self.armButton = QPushButton("Arm")
-        self.armButton.setStyleSheet("background-color:#003459;")
-        # self.armButton.setIcon(QIcon("arm2.png"))
-        # self.topBar.addWidget(self.armButton)
 
         self.dropdownLabel = QLabel()
         self.dropdownLabel.setText("Select Mission Type: ")
@@ -83,10 +79,7 @@ class PlannerView(QMainWindow):
         self.savedLabel.setText("Saved Missions: ")
         self.topBar.addWidget(self.savedLabel)
         self.savedDropdown = QComboBox()
-        self.savedDropdown.addItem("Select")
-        self.savedDropdown.addItem("Mission 1")
-        self.savedDropdown.addItem("Mission 2")
-        self.savedDropdown.setPlaceholderText("Saved Missions")
+        self.savedDropdown.addItem("Select a Mission")
         self.topBar.addWidget(self.savedDropdown)
         self.topBar.addStretch(0)
 
@@ -99,7 +92,6 @@ class PlannerView(QMainWindow):
         self.batteryLevel.setText("No data")
         self.batteryLevel.setStyleSheet("color:#DFD9E8;")
         self.topBar.addWidget(self.batteryLevel)
-        # self.topBar.addStretch(0)
         self.topBar.addSpacerItem(QSpacerItem(30, 10))
 
         self.armedLabel = QLabel()
@@ -115,6 +107,7 @@ class PlannerView(QMainWindow):
 
         self.generalLayout.addLayout(self.topBar)
 
+    """Creating main input screens for indoor and outdoor planning"""
     def _createMainContent(self):
 
         self.mainLayout = QHBoxLayout()
@@ -123,7 +116,6 @@ class PlannerView(QMainWindow):
         self.missionTitle.setText("Route Planner")
         self.missionTitle.setFont(self.bold)
         self.missionTitle.setAlignment(Qt.AlignCenter)
-        # self.missionLayout.addWidget(self.missionTitle)
 
         self.map = FoliumDisplay()
         self.grid = GridWidget()
@@ -165,7 +157,7 @@ class PlannerView(QMainWindow):
         buttonsLayout = QHBoxLayout()
         # Button text.
         buttons = [
-            " Add Waypoint", "Clear Mission", "Save Mission", "Run Mission  "
+            " Add Waypoint", "  Clear Mission", "  Save Mission", "Run Mission  "
         ]
         # Create the buttons and add them to the layout.
         for btnText in buttons:
@@ -175,12 +167,20 @@ class PlannerView(QMainWindow):
             if btnText == " Add Waypoint":
                 self.buttons[btnText].setIcon(QIcon("add.png"))
 
+            if btnText == "  Save Mission":
+                self.buttons[btnText].setIcon(QIcon("save.png"))
+
+            if btnText == "  Clear Mission":
+                self.buttons[btnText].setIcon(QIcon("clear.png"))
+
             if btnText == "Run Mission  ":
                 self.buttons[btnText].setStyleSheet("background-color:#3186CC;")
                 self.buttons[btnText].setIcon(QIcon("run.png"))
                 self.buttons[btnText].setLayoutDirection(Qt.RightToLeft)
 
             buttonsLayout.addWidget(self.buttons[btnText])
+
+        self.buttons[" Add Waypoint"].hide()
 
         # Add buttonsLayout to the general layout.
         self.missionLayout.addLayout(buttonsLayout)
@@ -190,22 +190,42 @@ class PlannerView(QMainWindow):
         self.mainLayout.addSpacerItem(QSpacerItem(20, 100))
         self.generalLayout.addLayout(self.mainLayout)
 
+    """Creating mission controls/options for indoor and outdoor planning"""
     def _createMissionControls(self):
 
         self.controlsLayout = QVBoxLayout()
-        self.controlsLayout.addSpacerItem(QSpacerItem(50, 20))
+        self.controlsLayout.addSpacerItem(QSpacerItem(50, 15))
         self.controlsTitle = QLabel()
         self.controlsTitle.setText("Mission Controls")
+
         self.bold = QFont()
         self.bold.setBold(True)
         self.bold.setPixelSize(18)
         self.subheading = QFont()
         self.subheading.setBold(True)
         self.subheading.setPixelSize(12)
+
         self.controlsTitle.setFont(self.bold)
         self.controlsTitle.setAlignment(Qt.AlignHCenter)
         self.controlsLayout.addWidget(self.controlsTitle)
         self.controlsLayout.addSpacerItem(QSpacerItem(50, 10))
+
+        self._createOutdoorControls()
+        self._createIndoorControls()
+
+        self.mapControlWidget = QFrame()
+        self.mapControlWidget.setLayout(self.mapControls)
+        self.gridControlWidget = QFrame()
+        self.gridControlWidget.setLayout(self.gridControls)
+        self.controlStack = QStackedWidget()
+        self.controlStack.addWidget(self.mapControlWidget)
+        self.controlStack.addWidget(self.gridControlWidget)
+        self.controlsLayout.addWidget(self.controlStack)
+        self.controlStack.setMaximumWidth(270)
+        # self.controlsLayout.addSpacerItem(QSpacerItem(50, 20))
+
+    """Outdoor mission controls."""
+    def _createOutdoorControls(self):
 
         self.mapControls = QVBoxLayout()
         self.mapControls.setAlignment(Qt.AlignRight)
@@ -215,7 +235,7 @@ class PlannerView(QMainWindow):
         self.mapControls.addWidget(self.altitudeLabel)
 
         self.altitudeInputLayout = QHBoxLayout()
-        self.altitudeInputLayout.addStretch()
+        # self.altitudeInputLayout.addStretch()
         self.altitudeInputLayout.setAlignment(Qt.AlignRight)
         self.altitudeInput = QLineEdit()
         self.altitudeInput.setMaximumWidth(75)
@@ -224,12 +244,51 @@ class PlannerView(QMainWindow):
         self.altitudeInputLabel = QLabel("m")
         self.altitudeInputButton = QPushButton("Set")
         self.altitudeInputButton.setMinimumWidth(75)
+        self.altitudeInputLayout.addSpacerItem(QSpacerItem(10, 5))
         self.altitudeInputLayout.addWidget(self.altitudeInput)
         self.altitudeInputLayout.addWidget(self.altitudeInputLabel)
         self.altitudeInputLayout.addWidget(self.altitudeInputButton)
-        self.altitudeInputLayout.addStretch()
+        self.altitudeInputLayout.addSpacerItem(QSpacerItem(10, 5))
+        # self.altitudeInputLayout.addStretch()
         self.mapControls.addLayout(self.altitudeInputLayout)
+        self.mapControls.addSpacerItem(QSpacerItem(50, 15))
+
+        self.speedLabel = QLabel()
+        self.speedLabel.setText("Set Speed to Next Waypoint")
+        self.speedLabel.setFont(self.subheading)
+        self.mapControls.addWidget(self.speedLabel)
+
+        self.speedInputLayout = QHBoxLayout()
+        # self.speedInputLayout.addStretch()
+        self.speedInputLayout.setAlignment(Qt.AlignRight)
+        self.speedInput = QLineEdit()
+        self.speedInput.setMaximumWidth(75)
+        self.speedInput.setText("1.0")
+        self.speedInput.setAlignment(Qt.AlignRight)
+        self.speedInputLabel = QLabel("m / s")
+        self.speedInputButton = QPushButton("Set")
+        self.speedInputButton.setMinimumWidth(75)
+        self.speedInputLayout.addSpacerItem(QSpacerItem(10, 5))
+        self.speedInputLayout.addWidget(self.speedInput)
+        self.speedInputLayout.addWidget(self.speedInputLabel)
+        self.speedInputLayout.addWidget(self.speedInputButton)
+        self.speedInputLayout.addSpacerItem(QSpacerItem(10, 5))
+        # self.speedInputLayout.addStretch()
+        self.mapControls.addLayout(self.speedInputLayout)
+        self.mapControls.addSpacerItem(QSpacerItem(50, 18))
+
+        self.returnCheck = QCheckBox()
+        self.returnCheck.setChecked(True)
+        self.returnCheck.setLayoutDirection(Qt.LeftToRight)
+        self.returnCheck.setText("  Return To Start For Landing")
+        self.returnLayout = QHBoxLayout()
+        self.returnLayout.addSpacerItem(QSpacerItem(12, 5))
+        self.returnLayout.addWidget(self.returnCheck)
+        self.mapControls.addLayout(self.returnLayout)
         self.mapControls.addStretch()
+
+    """Indoor mission controls."""
+    def _createIndoorControls(self):
 
         self.gridControls = QVBoxLayout()
         self.altitudeLabelGrid = QLabel()
@@ -245,38 +304,64 @@ class PlannerView(QMainWindow):
         self.altitudeInputLabelGrid = QLabel("m")
         self.altitudeInputButtonGrid = QPushButton("Set")
         self.altitudeInputButtonGrid.setMinimumWidth(75)
-        self.altitudeInputLayoutGrid.addStretch()
+        # self.altitudeInputLayoutGrid.addStretch()
+        self.altitudeInputLayoutGrid.addSpacerItem(QSpacerItem(10, 5))
         self.altitudeInputLayoutGrid.addWidget(self.altitudeInputGrid)
         self.altitudeInputLayoutGrid.addWidget(self.altitudeInputLabelGrid)
         self.altitudeInputLayoutGrid.addWidget(self.altitudeInputButtonGrid)
-        self.altitudeInputLayoutGrid.addStretch()
+        self.altitudeInputLayoutGrid.addSpacerItem(QSpacerItem(10, 5))
+        # self.altitudeInputLayoutGrid.addStretch()
         self.gridControls.addLayout(self.altitudeInputLayoutGrid)
         self.gridControls.addSpacerItem(QSpacerItem(50, 5))
 
-        self.snapCheck = QCheckBox()
-        self.snapCheck.setChecked(True)
-        self.snapCheck.setLayoutDirection(Qt.LeftToRight)
-        self.snapCheck.setText("  Snap to Grid")
+        self.dimensionsHeading = QLabel("Current Blueprint Dimensions")
+        self.dimensionsHeading.setFont(self.subheading)
+        self.gridControls.addWidget(self.dimensionsHeading)
+        self.ratioLayout = QHBoxLayout()
+        self.ratioLayout.setAlignment(Qt.AlignCenter)
+
+        self.dimensionsIcon = QLabel()
+        gridIcon = QIcon("grid.png")
+        self.dimensionsIcon.setPixmap(gridIcon.pixmap(gridIcon.actualSize(QSize(18, 18))))
+        self.dimensionsLabel = QLabel("126.0 x 73.5 m   ")
+        self.dimensionsLabel.setStyleSheet("color:#DED5EC;")
+        self.dimensionsLabel.setAlignment(Qt.AlignCenter)
+        self.ratioLayout.addWidget(self.dimensionsIcon)
+        self.ratioLayout.addWidget(self.dimensionsLabel)
+
+        self.ratioIcon = QLabel()
+        squareIcon = QIcon("square.png")
+        self.ratioIcon.setPixmap(squareIcon.pixmap(squareIcon.actualSize(QSize(13, 13))))
+        self.ratioText = QLabel("3.5 x 3.5 m")
+        self.ratioText.setStyleSheet("color:#DED5EC;")
+        self.ratioLayout.addWidget(self.ratioIcon)
+        self.ratioLayout.addWidget(self.ratioText)
+        self.gridControls.addLayout(self.ratioLayout)
+
+        self.blueprintUpload = QPushButton(" Upload Blueprints")
+        self.blueprintUpload.setIcon(QIcon("upload.png"))
+        self.gridControls.addSpacerItem(QSpacerItem(25, 10))
+        self.gridControls.addWidget(self.blueprintUpload)
+
         self.blueprintCheck = QCheckBox()
         self.blueprintCheck.setChecked(True)
         self.blueprintCheck.setLayoutDirection(Qt.LeftToRight)
         self.blueprintCheck.setText("  Show Blueprints")
         self.blueprintLayout = QHBoxLayout()
-        self.blueprintUpload = QPushButton(" Upload Blueprints")
-        self.blueprintUpload.setIcon(QIcon("upload.png"))
-        self.blueprintLayout.addWidget(self.blueprintUpload)
-        self.dimensionsHeading = QLabel("Current Blueprint Dimensions")
-        self.dimensionsHeading.setFont(self.subheading)
-        self.dimensionsLabel = QLabel("100 x 50m (1x1 : 3x3)")
-        self.dimensionsLabel.setStyleSheet("color:#DED5EC;")
-        self.dimensionsLabel.setAlignment(Qt.AlignCenter)
-        self.gridControls.addWidget(self.dimensionsHeading)
-        self.gridControls.addWidget(self.dimensionsLabel)
+        self.blueprintLayout.addSpacerItem(QSpacerItem(12, 5))
+        self.blueprintLayout.addWidget(self.blueprintCheck)
         self.gridControls.addSpacerItem(QSpacerItem(25, 5))
         self.gridControls.addLayout(self.blueprintLayout)
-        self.gridControls.addWidget(self.blueprintCheck)
-        self.gridControls.addSpacerItem(QSpacerItem(25, 5))
-        self.gridControls.addWidget(self.snapCheck)
+
+        self.snapCheck = QCheckBox()
+        self.snapCheck.setChecked(True)
+        self.snapCheck.setLayoutDirection(Qt.LeftToRight)
+        self.snapCheck.setText("  Snap to Grid")
+        self.snapLayout = QHBoxLayout()
+        self.snapLayout.addSpacerItem(QSpacerItem(12, 5))
+        self.snapLayout.addWidget(self.snapCheck)
+        self.gridControls.addSpacerItem(QSpacerItem(25, 2))
+        self.gridControls.addLayout(self.snapLayout)
 
         self.zoomLayout = QHBoxLayout()
         self.zoomLabel = QLabel("Zoom     ")
@@ -287,19 +372,8 @@ class PlannerView(QMainWindow):
         self.zoomLayout.addWidget(self.zoomIncrease)
         # self.gridControls.addLayout(self.zoomLayout)
         self.gridControls.addStretch()
-        # self.controlsLayout.addLayout(self.gridControls)
 
-        self.mapControlWidget = QFrame()
-        self.mapControlWidget.setLayout(self.mapControls)
-        self.gridControlWidget = QFrame()
-        self.gridControlWidget.setLayout(self.gridControls)
-        self.controlStack = QStackedWidget()
-        self.controlStack.addWidget(self.mapControlWidget)
-        self.controlStack.addWidget(self.gridControlWidget)
-        self.controlsLayout.addWidget(self.controlStack)
-        self.controlStack.setMaximumWidth(250)
-        # self.controlsLayout.addSpacerItem(QSpacerItem(50, 20))
-
+    """Creating module controls."""
     def _createModuleController(self):
 
         self.moduleLayout = QVBoxLayout()
@@ -310,16 +384,35 @@ class PlannerView(QMainWindow):
         self.moduleLayout.addWidget(self.moduleTitle)
         self.moduleLayout.addSpacerItem(QSpacerItem(50, 10))
 
+        """
+        To add your custom module controls add a '_create*YOUR_CUSTOM_MODULE*Controls()' function below and call 
+        it here 
+        """
+        self._createSeederControls()
+        self._createGripperControls()
+
+        self.seederWidget = QFrame()
+        self.seederWidget.setLayout(self.seederLayout)
+        self.gripperWidget = QFrame()
+        self.gripperWidget.setLayout(self.gripperLayout)
+        self.moduleTabs = QTabWidget()
+        self.moduleTabs.addTab(self.seederWidget, "Seeder Module")
+        self.moduleTabs.addTab(self.gripperWidget, "Gripper Module")
+        self.moduleTabs.setMaximumWidth(275)
+
+        self.moduleLayout.addWidget(self.moduleTabs)
+        self.controlsLayout.addLayout(self.moduleLayout)
+        # self.controlsLayout.addStretch()
+
+    """Specific controls for seeder module."""
+    def _createSeederControls(self):
+
         self.seederLayout = QVBoxLayout()
         self.seederLabel = QLabel()
         seederImage = QIcon("seeder.png")
         self.seederLabel.setPixmap(seederImage.pixmap(seederImage.actualSize(QSize(80, 80))))
         self.seederLabel.setAlignment(Qt.AlignCenter)
         self.seederLayout.addWidget(self.seederLabel)
-
-        self.seederStatus = QLabel()
-        self.seederStatus.setText("Module Status:")
-        # self.seederLayout.addWidget(self.seederStatus)
 
         self.seederControl = QLabel()
         self.seederControl.setText("Manual Control")
@@ -329,6 +422,7 @@ class PlannerView(QMainWindow):
         self.seederControl.setFont(self.subheading)
         self.seederLayout.addWidget(self.seederControl)
         self.manualSeedButton = QPushButton("Drop Seed Bomb")
+        # self.manualSeedButton.setIcon(QIcon("drop.png"))
         self.seederLayout.addWidget(self.manualSeedButton)
 
         self.seederMissionLabel = QLabel()
@@ -349,6 +443,9 @@ class PlannerView(QMainWindow):
         self.missionSeederStatus.hide()
         self.seederLayout.addWidget(self.missionSeederStatus)
         self.seederLayout.addStretch()
+
+    """Specific gripper controls."""
+    def _createGripperControls(self):
 
         self.gripperLayout = QVBoxLayout()
         self.gripperLabel = QLabel()
@@ -392,19 +489,9 @@ class PlannerView(QMainWindow):
         self.gripperLayout.addWidget(self.missionGripperStatus)
         self.gripperLayout.addStretch()
 
-        self.seederWidget = QFrame()
-        self.seederWidget.setLayout(self.seederLayout)
-        self.gripperWidget = QFrame()
-        self.gripperWidget.setLayout(self.gripperLayout)
-        self.moduleTabs = QTabWidget()
-        self.moduleTabs.addTab(self.seederWidget, "Seeder Module")
-        self.moduleTabs.addTab(self.gripperWidget, "Gripper Module")
-        self.moduleTabs.setMaximumWidth(275)
-
-        self.moduleLayout.addWidget(self.moduleTabs)
-        self.controlsLayout.addLayout(self.moduleLayout)
-        self.controlsLayout.addStretch()
-
+    """
+    Start of public functions that are accessible to Controller class.
+    """
     def setOutdoorPlanner(self):
         self.tabStack.setCurrentIndex(0)
         self.controlStack.setCurrentIndex(0)
@@ -431,7 +518,14 @@ class PlannerView(QMainWindow):
 
     def changeAltitudeFocus(self):
         self.altitudeInput.clearFocus()
-        self.altitudeLabelGrid.clearFocus()
+        self.altitudeInputGrid.clearFocus()
+        self.speedInput.clearFocus()
+        
+    def showWaypointButton(self):
+        self.buttons[" Add Waypoint"].show()
+
+    def hideWaypointButton(self):
+        self.buttons[" Add Waypoint"].hide()
 
     def setBatteryText(self, text, armed):
         self.batteryLevel.setText(str(round(text/1.0)*100) + "%")
@@ -448,15 +542,28 @@ class PlannerView(QMainWindow):
         height = round(dimensions[1], 1)
         ratio_w = round(dimensions[0]/36, 1)
         ratio_h = round(dimensions[1]/21, 1)
-        self.dimensionsLabel.setText(f"{width} x {height}m (1x1 : {ratio_w}x{ratio_h})")
+        self.dimensionsLabel.setText(f"{width} x {height} m")
+        self.ratioText.setText(f"{ratio_w} x {ratio_h} m)")
+
+    def addSavedMission(self, mission_name):
+        self.savedDropdown.addItem(mission_name)
 
     def setDisplayText(self, text):
         """Set display's text."""
-        self.terminal.setText(text)
-        self.terminal.setFocus()
+        if self.outdoor:
+            self.outdoorTerminal.setText(text)
+            self.outdoorTerminal.setFocus()
+        else:
+            self.indoorTerminal.setText(text)
+            self.indoorTerminal.setFocus()
 
     def addDisplayText(self, text):
-        self.terminal.append(text)
+        if self.outdoor:
+            self.outdoorTerminal.append(text)
+            self.outdoorTerminal.setFocus()
+        else:
+            self.indoorTerminal.append(text)
+            self.indoorTerminal.setFocus()
 
     def displayText(self):
         """Get terminal's text."""
@@ -488,10 +595,10 @@ class PlannerView(QMainWindow):
                          QLineEdit.Normal, '', Qt.WindowFlags())
         return ip
 
-    def fileDialog(self):
+    def saveDialog(self):
         """Show file dialog."""
         dlg = QInputDialog(self)
-        ip = dlg.getText(self, "Mission Filename", "Enter a file name:", QLineEdit.Normal, '', Qt.WindowFlags())
+        ip = dlg.getText(self, "Mission Name", "Enter name for your mission:", QLineEdit.Normal, '', Qt.WindowFlags())
         return ip
 
     def errorDialog(self, msg, parent):

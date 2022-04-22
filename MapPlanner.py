@@ -36,7 +36,8 @@ class FoliumDisplay(QWidget):
         self.waypoint_count = 0
         self.waypoints = []
         self.layers = []
-        self.drone_start = []
+        self.drone_start = [55.860573940337495, -4.242192506790162]
+        self.waypoints.append(self.drone_start)
         geo = geocoder.ip('me')
         self.gc_start = geo.latlng
         # self.waypoints.append(self.gc_start)
@@ -44,18 +45,18 @@ class FoliumDisplay(QWidget):
         self.m = folium.Map(
             tiles='OpenStreetMap',  # 'Stamen Terrain',
             max_zoom=18,
-            zoom_start=12,
-            location=self.gc_start)
+            zoom_start=19,
+            location=self.drone_start)
 
-        # folium.CircleMarker(
-        #     location=self.gc_start,
-        #     radius=10,
-        #     popup="Start Location",
-        #     tooltip="Start Location",
-        #     color="#3186cc",
-        #     fill=True,
-        #     fill_color="#3186cc"
-        # ).add_to(self.m)
+        folium.CircleMarker(
+            location=self.drone_start,
+            radius=10,
+            popup="Start Location",
+            tooltip="Start Location",
+            color="#3186cc",
+            fill=True,
+            fill_color="#3186cc"
+        ).add_to(self.m)
 
         # Add Custom JS to folium map
         self.m = self.addCustomJS(self.m)
@@ -138,6 +139,67 @@ class FoliumDisplay(QWidget):
             color="#3186cc",
             fill=True,
             fill_color="#3186cc"
+        ).add_to(self.m)
+
+        # Add Custom JS to folium map
+        self.m = self.addCustomJS(self.m)
+        # save map data to data object
+        data = io.BytesIO()
+        self.m.save(data, close_file=False)
+
+        self.webView = QWebEngineView()  # start web engine
+        page = WebEnginePage(self)
+        self.webView.setPage(page)
+        self.webView.setHtml(data.getvalue().decode())  # give html of folium map to webengine
+        self.layout.addWidget(self.webView)
+
+    def setMap(self, markers):
+        self.layout.removeWidget(self.webView)
+        self.webView.deleteLater()
+        self.waypoint_count = 0
+        self.waypoints = []
+        self.layers = []
+        lat = markers[0][0]
+        lon = markers[0][1]
+        self.drone_start = (lat, lon)
+        self.waypoints.append(self.drone_start)
+
+        self.m = folium.Map(
+            tiles='OpenStreetMap',  # 'Stamen Terrain',
+            max_zoom=18,
+            zoom_start=19,
+            location=self.drone_start)
+
+        folium.CircleMarker(
+            location=self.drone_start,
+            radius=10,
+            popup="Start Location",
+            tooltip="Start Location",
+            color="#3186cc",
+            fill=True,
+            fill_color="#3186cc"
+        ).add_to(self.m)
+
+        wps = [self.drone_start]
+        for i in range(1, len(markers)):
+            wp = markers[i]
+            lat = wp[0]
+            lon = wp[1]
+            wps.append((lat, lon))
+            folium.Marker(
+                (lat, lon),
+                popup=f"<i><h6>Waypoint {self.waypoint_count}</h6>"
+                      f"N:{round(lat, 8)}<br>"
+                      f"W:{round(lon, 8)}<br>\n"
+                      f"Altitude: {wp[2]}m</i>",
+                tooltip=f"Waypoint {i}"
+            ).add_to(self.m)
+
+        self.waypoint_count = len(markers)
+
+        self.waypoints = wps
+        folium.PolyLine(
+            self.waypoints
         ).add_to(self.m)
 
         # Add Custom JS to folium map

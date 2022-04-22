@@ -1,7 +1,7 @@
 
 import sys
 
-from PyQt5.QtCore import QFile, QTextStream
+from PyQt5.QtCore import Qt, QFile, QTextStream
 from PyQt5.QtWidgets import QApplication
 import breeze_resources
 from GUI import PlannerView
@@ -11,6 +11,12 @@ from Controller import PlannerControl
 def main():
     """Main function."""
     # Create an instance of `QApplication`
+    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+
+    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     planner = QApplication(sys.argv)
     file = QFile(":/dark-purple/stylesheet.qss")
     file.open(QFile.ReadOnly | QFile.Text)

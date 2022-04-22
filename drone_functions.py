@@ -14,12 +14,14 @@ from mavsdk.offboard import (OffboardError, PositionNedYaw)
 from mavsdk.mission import (MissionItem, MissionPlan)
 
 
-address = "udp://:14540"
-# address = "serial://COM6:56000"  # Not sure if this is right...
+address = "udp://:14540"           # For SITL testing.
+# address = "serial://COM6:56000"  # Uncomment for use with real drone and USB telemetry module
 
 
-async def connect(drone):
-    
+async def connect():
+
+    drone = System()
+
     await drone.connect(system_address=address)
     print("Waiting for drone to connect...")
     async for state in drone.core.connection_state():
@@ -29,21 +31,12 @@ async def connect(drone):
             break
         
     return True
-        
-    # async for flight_mode in drone.telemetry.flight_mode():
-    #     print(flight_mode)
-        
-    # async for battery in drone.telemetry.battery():
-    #     battery_level = battery.remaining_percent
-    #     print(battery_level)
-    #     break
-    
-    # return battery_level
 
 
 async def run_indoor(mission):
 
     drone = System()
+    attempts = 0
     mission_point = mission
 
     print("Mission Started")
@@ -53,6 +46,10 @@ async def run_indoor(mission):
         if state.is_connected:
             print("Drone discovered!")
             break
+        asyncio.sleep(1)
+        attempts += 1
+        if attempts > 10:
+            return False
 
     print("-- Arming")
     await drone.action.arm()
@@ -95,10 +92,10 @@ async def run_indoor(mission):
     await drone.action.disarm()
 
 
-async def run_outdoor(mission, telemetry):
+async def run_outdoor(mission, telemetry, ret):
     
     drone = System()
-    print("start")
+    attempts = 0
     await drone.connect(system_address=address)  # CHANGE
 
     # asyncio.ensure_future(print_battery(drone, telemetry))
@@ -111,6 +108,10 @@ async def run_outdoor(mission, telemetry):
         if state.is_connected:
             print("Drone discovered!")
             break
+        asyncio.sleep(1)
+        attempts += 1
+        if attempts > 10:
+            return False
 
     print_mission_progress_task = asyncio.ensure_future(
         print_mission_progress(drone))
@@ -152,7 +153,7 @@ async def run_outdoor(mission, telemetry):
 
     mission_plan = MissionPlan(mission_items)
 
-    await drone.mission.set_return_to_launch_after_mission(True)
+    await drone.mission.set_return_to_launch_after_mission(ret)
 
     print("-- Uploading mission")
     await drone.mission.upload_mission(mission_plan)
@@ -180,7 +181,6 @@ async def print_mission_progress(drone):
 async def observe_is_in_air(drone, running_tasks):
     """ Monitors whether the drone is flying or not and
     returns after landing """
-
     was_in_air = False
 
     async for is_in_air in drone.telemetry.in_air():
@@ -202,7 +202,17 @@ async def observe_is_in_air(drone, running_tasks):
 async def get_telemetry(result, outdoor):
     # Init the drone
     drone = System()
+    attempts = 0
     await drone.connect(system_address=address)
+    print("Waiting for drone to connect...")
+    async for state in drone.core.connection_state():
+        if state.is_connected:
+            print("Drone discovered!")
+            break
+        asyncio.sleep(1)
+        attempts += 1
+        if attempts > 10:
+            return False
 
     # Start the tasks
     asyncio.ensure_future(print_battery(drone, result))
@@ -259,26 +269,30 @@ async def print_telemetry():
 
 async def print_battery(drone, result):
     async for battery in drone.telemetry.battery():
-        # print(f"Battery: {battery.remaining_percent}")
+        print(f"Battery: {battery.remaining_percent}")
         result[0] = battery.remaining_percent
-        break
+        await asyncio.sleep(5)
+        # break
 
 
 async def print_gps_info(drone, result):
     async for gps_info in drone.telemetry.gps_info():
         print(f"GPS info: {gps_info}")
-        break
+        await asyncio.sleep(5)
+        # break
 
 
 async def print_in_air(drone, result):
     async for in_air in drone.telemetry.in_air():
-        # print(f"In air: {in_air}")
+        print(f"In air: {in_air}")
         result[1] = in_air
-        break
+        await asyncio.sleep(5)
+        # break
 
 
 async def print_position(drone, result):
     async for position in drone.telemetry.position():
-        # print(position)
+        print(position)
         result[2] = position
-        break
+        await asyncio.sleep(5)
+        # break

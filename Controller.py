@@ -7,13 +7,25 @@ import asyncio
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from PyQt5.QtWidgets import QFileDialog
 
+from Util import (
+    saveMission,
+    readMissions,
+    missionToPlot,
+    checkAltitude,
+    checkSpeed,
+    formatInput,
+    formatDimensions,
+    terminalString
+)
+
 from drone_functions import (
     run_indoor,
     run_outdoor,
     get_battery,
     connect,
     get_telemetry,
-    print_telemetry)
+    print_telemetry,
+)
 
 telemetry = [1.0, False, []]
 
@@ -28,6 +40,7 @@ class PlannerControl:
         self.indoor_mission = []
         self.relative_start_x = 0
         self.relative_start_y = 0
+        self.missions = {}
         self._view = view
         self.connected = False
         self.telemetry_thread = None
@@ -35,6 +48,7 @@ class PlannerControl:
         # self.drone = None
         # Connect signals and slots
         self._connectSignals()
+        self._loadMissions()
 
     def _connectDrone(self):
         if not self.connected:
@@ -56,7 +70,7 @@ class PlannerControl:
         # Step 2: Create a QThread object
         self.thread = QThread()
         # Step 3: Create a worker object
-        self.worker = BatteryWorker(self._view.outdoor)
+        self.worker = TelemetryWorker(self._view.outdoor)
         # Step 4: Move worker to the thread
         self.worker.moveToThread(self.thread)
         # Step 5: Connect signals and slots
@@ -70,13 +84,10 @@ class PlannerControl:
         self.thread.start()
 
         # Final resets
-        # self._view.connectButton.setEnabled(False)
+        self._view.connectButton.setEnabled(False)
         self.thread.finished.connect(
             lambda: self._view.connectButton.setEnabled(True)
         )
-        # self.thread.finished.connect(
-        #     lambda: self._view.setBatteryText(0)
-        # )
 
     def _addWaypoint(self):
         """Add waypoint via dialog."""
@@ -90,7 +101,22 @@ class PlannerControl:
                 self.mission.append(wp)
                 self._view.addDisplayText(wp_text)
 
+    def _updateWaypointButton(self):
+        """Show/hide waypoint button."""
+        if self._view.outdoor:
+            if self._view.outdoorTabs.currentIndex() == 0:
+                self._view.hideWaypointButton()
+            else:
+                self._view.showWaypointButton()
+
+        else:
+            if self._view.indoorTabs.currentIndex() == 0:
+                self._view.hideWaypointButton()
+            else:
+                self._view.showWaypointButton()
+
     def _newWaypoint(self, latitude, longitude):
+
         altitude = self._view.altitudeInput.text()
         altitude_fl = checkAltitude(altitude)
 
@@ -103,8 +129,11 @@ class PlannerControl:
 
         self.outdoor_mission.append([float(latitude), float(longitude), float(altitude_fl)])
         self._view.map.addMarker(latitude, longitude, altitude_fl)
+        wp_text = terminalString([float(latitude), float(longitude), float(altitude_fl)], self._view.outdoor)
+        self._view.addDisplayText(wp_text)
 
     def _newIndoorWaypoint(self, x, y):
+
         altitude = self._view.altitudeInputGrid.text()
         altitude_fl = checkAltitude(altitude)
 
@@ -128,6 +157,8 @@ class PlannerControl:
 
         self.indoor_mission.append([float(relative_x), float(relative_y), altitude_fl, 0.0])
         self._view.grid.chart.add_point(x, y)
+        wp_text = terminalString([float(relative_x), float(relative_y), altitude_fl], self._view.outdoor)
+        self._view.addDisplayText(wp_text)
 
     def _removeIndoorWaypoint(self):
         self.indoor_mission = self.indoor_mission[:-1]
@@ -135,7 +166,6 @@ class PlannerControl:
 
     def _clearMission(self):
         """Clear current mission."""
-
         if self._view.outdoor:
             self.outdoor_mission = []
             self._view.map.clearMap()
@@ -145,12 +175,6 @@ class PlannerControl:
 
     def _runMission(self):
         """Run the mission using drone functions."""
-        # filename = self._view.fileDialog()
-        # self.mission_str = self.mission_str[:-2] + "]"
-        # status = self._run(self.mission, self._view.outdoor)
-        # if status == False:
-        #     self._view.errorDialog("Mission is empty, please add at least one waypoint.", None)
-
         if self._view.outdoor:
             print(self.outdoor_mission)
             # Step 2: Create a QThread object
@@ -221,6 +245,21 @@ class PlannerControl:
             return
 
         self._view.changeAltitudeFocus()
+        
+    def _setSpeed(self):
+
+        speed = self._view.speedInput.text()
+        speed_fl = checkSpeed(speed)
+
+        if speed_fl == -1:
+            self._view.errorDialog("Poorly formatted speed input. Make sure speed is set to be a number.", None)
+            return
+        if not speed_fl:
+            self._view.errorDialog("Speed value not valid. Make sure speed is set between 0.1 & 5.0 metres per second.",
+                                   None)
+            return
+
+        self._view.changeAltitudeFocus()
 
     def _updateBlueprints(self):
         uploadDialog = QFileDialog.getOpenFileName(self._view, 'Select Your Blueprint Image', os.getcwd(),
@@ -237,19 +276,61 @@ class PlannerControl:
                     self._view.errorDialog("Poorly formatted dimensions input. Make sure 2 numbers are entered for "
                                            "width and height separated by a comma.", None)
 
+    def _saveMission(self):
+        name_ip = self._view.saveDialog()
+
+        if name_ip[1]:
+            mission_name = name_ip[0]
+            if not mission_name:
+                self._view.errorDialog("Mission name cannot be blank.", None)
+                return
+
+        saveMission(mission_name, (self.relative_start_x, self.relative_start_y),
+                    self.indoor_mission, self.outdoor_mission)
+        self._view.addSavedMission(mission_name)
+        self.missions[mission_name] = [(self.relative_start_x, self.relative_start_y),
+                                       self.indoor_mission, self.outdoor_mission]
+
+    def _loadMission(self, index):
+        if index == 0:
+            return
+        print(index)
+        key = list(self.missions.keys())[index-1]
+        saved_mission = self.missions[key]
+        self.relative_start_x = saved_mission[0][0]
+        self.relative_start_y = saved_mission[0][1]
+        self.indoor_mission = saved_mission[1]
+        print(self.indoor_mission)
+        if self.indoor_mission:
+            indoor_plot = missionToPlot(self.indoor_mission, (self.relative_start_x, self.relative_start_y))
+            self._view.grid.chart.set_plot(indoor_plot)
+        self.outdoor_mission = saved_mission[2]
+        print(self.outdoor_mission)
+        if self.outdoor_mission:
+            self._view.map.setMap(self.outdoor_mission)
+
+    def _loadMissions(self):
+        self.missions = readMissions()
+        for name in self.missions.keys():
+            self._view.addSavedMission(name)
+
     def _connectSignals(self):
         """Connect signals and slots."""
         self._view.buttons[" Add Waypoint"].clicked.connect(partial(self._addWaypoint))
-        self._view.buttons["Clear Mission"].clicked.connect(partial(self._clearMission))
-        self._view.buttons["Run Mission  "].clicked.connect(partial(self._runMission))
+        self._view.buttons["  Clear Mission"].clicked.connect(partial(self._clearMission))
+        self._view.buttons["  Save Mission"].clicked.connect(partial(self._saveMission))
+        # self._view.buttons["Run Mission  "].clicked.connect(partial(self._runMission))
         self._view.connectButton.clicked.connect(partial(self._threadTest))
-        self._view.armButton.clicked.connect(partial(self._threadTest))
         self._view.dropdown.currentIndexChanged.connect(partial(self._changeMissionMode))
+        self._view.savedDropdown.currentIndexChanged.connect(partial(self._loadMission))
+        self._view.outdoorTabs.currentChanged.connect(partial(self._updateWaypointButton))
+        self._view.indoorTabs.currentChanged.connect(partial(self._updateWaypointButton))
         self._view.map.newWaypoint.connect(partial(self._newWaypoint))
         self._view.grid.chart.newWaypoint.connect(partial(self._newIndoorWaypoint))
         self._view.grid.chart.removeWaypoint.connect(partial(self._removeIndoorWaypoint))
         self._view.altitudeInputButton.clicked.connect(partial(self._setAltitude))
         self._view.altitudeInputButtonGrid.clicked.connect(partial(self._setAltitude))
+        self._view.speedInputButton.clicked.connect(partial(self._setSpeed))
         self._view.zoomIncrease.clicked.connect(partial(self._view.grid.chart.increase_size))
         self._view.zoomDecrease.clicked.connect(partial(self._view.grid.chart.decrease_size))
         self._view.snapCheck.clicked.connect(partial(self._view.grid.chart.set_snap))
@@ -263,6 +344,9 @@ class PlannerControl:
 
 """
 Model Functions & Classes.
+
+Provides controller with access to drone_functions through threads 
+that run parallel to the main GUI thread.
 """
 
 
@@ -275,19 +359,7 @@ def connectDrone():
         return None
 
 
-class Worker(QObject):
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-
-    def run(self):
-        """Long-running task."""
-        for i in range(5):
-            sleep(1)
-            self.progress.emit(i + 1)
-        self.finished.emit()
-
-
-class BatteryWorker(QObject):
+class TelemetryWorker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(float, bool)
     armed = pyqtSignal(bool)
@@ -301,9 +373,12 @@ class BatteryWorker(QObject):
         sent = False
         try:
             loop = asyncio.new_event_loop()
+            sleep(1)
             while True:
-                loop.run_until_complete(get_telemetry(telemetry, self.outdoor))
-                sleep(1)
+                connected = loop.run_until_complete(get_telemetry(telemetry, self.outdoor))
+                sleep(2)
+                if not connected:
+                    self.finished.emit()
                 if telemetry[2] and self.outdoor and not sent:
                     # print(telemetry[2].longitude_deg)
                     self.location.emit(telemetry[2].latitude_deg, telemetry[2].longitude_deg)
@@ -339,9 +414,13 @@ class MissionWorker(QObject):
             loop = asyncio.new_event_loop()
             print("Loop resolved.")
             if self.outdoor:
-                loop.run_until_complete(run_outdoor(self.mission, telemetry))
+                connected = loop.run_until_complete(run_outdoor(self.mission, telemetry, True))
+                if not connected:
+                    self.finished.emit()
             else:
-                loop.run_until_complete(run_indoor(self.mission))
+                connected = loop.run_until_complete(run_indoor(self.mission))
+                if not connected:
+                    self.finished.emit()
             self.finished.emit()
         except Exception as e:
             self.finished.emit()
@@ -357,66 +436,3 @@ def getBatteryLevel():
         return 1.0
     except Exception as e:
         return e
-
-
-def checkAltitude(altitude):
-
-    try:
-        altitude_fl = float(altitude)
-    except:
-        return -1
-
-    if 0.9 < altitude_fl < 20:
-        return altitude_fl
-    else:
-        return 0
-
-
-# Check and format input for adding waypoint.
-def formatInput(waypoint_str, outdoor):
-    try:
-        wp_arr = waypoint_str.split(',')
-    except:
-        return [], "", ""
-
-    n = len(wp_arr)
-    if n > 3 or n == 0 or n < 3:
-        return [], "", ""
-
-    try:
-        wp = [float(wp_arr[0]), float(wp_arr[1]), float(wp_arr[2])]
-    except:
-        return [], "", ""
-
-    wp_str = "[float(" + wp_arr[0] + "), float(" + wp_arr[1] + "), float(" + wp_arr[2] + "), 0.0], "
-
-    if outdoor:
-        wp_text = "\nNext waypoint co-ordinates:        N:" + wp_arr[0] + "    W:" + wp_arr[1] + "    Alt:" + wp_arr[
-            2] + "m \n"
-    else:
-        wp_text = "\nNext waypoint co-ordinates:        x = " + wp_arr[0] + "m    y = " + wp_arr[1] + "m    z = " + \
-                  wp_arr[2] + "m \n"
-
-    return wp, wp_str, wp_text
-
-
-# Check and format input for adding waypoint.
-def formatDimensions(dimensions_str):
-    try:
-        dimensions_arr = dimensions_str.split(',')
-    except:
-        print("split")
-        return []
-
-    n = len(dimensions_arr)
-    if not n == 2:
-        print("number")
-        return []
-
-    try:
-        dimensions = [float(dimensions_arr[0]), float(dimensions_arr[1])]
-    except:
-        print("float")
-        return []
-
-    return dimensions

@@ -19,7 +19,7 @@ class Grid(FigureCanvas):
 
         self.x = 36
         self.y = 21
-        self.h = 2.75
+        self.h = 3
         self.w = self.h*self.x / self.y
 
         self.f = plt.figure(constrained_layout=True)  # figsize=(self.w, self.h),
@@ -110,6 +110,10 @@ class Grid(FigureCanvas):
         if self.rectdict['round_to_int']:
             self.p_round.set_data(round(event.xdata), round(event.ydata))
 
+        plt.draw()
+
+    def set_plot(self, plot):
+        self.rectdict['points'] = plot
         plt.draw()
 
     def add_point(self, x, y):
