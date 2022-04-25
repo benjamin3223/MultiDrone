@@ -12,17 +12,11 @@ from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWidgets import QWidget
 
 
-class WebEnginePage(QWebEnginePage):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.parent = parent
+"""
+Class to create the custom MapPlanner widget, allowing users to plot an outdoor GPS-based 
+mission on an interactive Open-Source map.
 
-    def javaScriptConsoleMessage(self, level, msg, line, source_id):
-        print(msg)  # Check js errors
-        if 'coordinates' in msg:
-            self.parent.handleClick(msg)
-
-
+"""
 class FoliumDisplay(QWidget):
 
     newWaypoint = pyqtSignal(float, float, name="newWaypoint")
@@ -40,7 +34,7 @@ class FoliumDisplay(QWidget):
         self.waypoints.append(self.drone_start)
         geo = geocoder.ip('me')
         self.gc_start = geo.latlng
-        # self.waypoints.append(self.gc_start)
+        # self.waypoints.append(self.gc_start)          #  Can be used to get user location for general start location.
 
         self.m = folium.Map(
             tiles='OpenStreetMap',  # 'Stamen Terrain',
@@ -70,6 +64,9 @@ class FoliumDisplay(QWidget):
         self.webView.setHtml(data.getvalue().decode())  # give html of folium map to webengine
         self.layout.addWidget(self.webView)
 
+    """
+    Clear currently plotted mission.
+    """
     def clearMap(self):
         self.layout.removeWidget(self.webView)
         self.webView.deleteLater()
@@ -116,6 +113,9 @@ class FoliumDisplay(QWidget):
         self.webView.setHtml(data.getvalue().decode())  # give html of folium map to webengine
         self.layout.addWidget(self.webView)
 
+    """
+    Set start location of the mission when the drone location is acquired.
+    """
     def setStart(self, lat, long):
         self.layout.removeWidget(self.webView)
         self.webView.deleteLater()
@@ -153,6 +153,9 @@ class FoliumDisplay(QWidget):
         self.webView.setHtml(data.getvalue().decode())  # give html of folium map to webengine
         self.layout.addWidget(self.webView)
 
+    """
+    Set up a saved mission loaded in.
+    """
     def setMap(self, markers):
         self.layout.removeWidget(self.webView)
         self.webView.deleteLater()
@@ -188,7 +191,7 @@ class FoliumDisplay(QWidget):
             wps.append((lat, lon))
             folium.Marker(
                 (lat, lon),
-                popup=f"<i><h6>Waypoint {self.waypoint_count}</h6>"
+                popup=f"<i><h6>Waypoint {i}</h6>"
                       f"N:{round(lat, 8)}<br>"
                       f"W:{round(lon, 8)}<br>\n"
                       f"Altitude: {wp[2]}m</i>",
@@ -196,8 +199,8 @@ class FoliumDisplay(QWidget):
             ).add_to(self.m)
 
         self.waypoint_count = len(markers)
-
         self.waypoints = wps
+
         folium.PolyLine(
             self.waypoints
         ).add_to(self.m)
@@ -214,6 +217,9 @@ class FoliumDisplay(QWidget):
         self.webView.setHtml(data.getvalue().decode())  # give html of folium map to webengine
         self.layout.addWidget(self.webView)
 
+    """
+    Refresh the map to reflect most recent changes.
+    """
     def refreshMap(self):
         data = io.BytesIO()
         self.m.save(data, close_file=False)
@@ -223,7 +229,10 @@ class FoliumDisplay(QWidget):
         self.webView.setPage(page)
         self.webView.setHtml(data.getvalue().decode())  # give html of folium map to webengine
         self.layout.insertWidget(0, self.webView)
-        
+
+    """
+    Add a marker for new waypoint.
+    """
     def addMarker(self, lat, lng, alt):
 
         folium.Marker(
@@ -244,6 +253,10 @@ class FoliumDisplay(QWidget):
         self.layout.removeWidget(self.webView)
         self.refreshMap()
 
+    """
+    Add custom JavaScript to the Leaflet.js library to allow clicks to return 
+    GPS co-ordinates.
+    """
     @staticmethod
     def addCustomJS(map_object):
         my_js = f"""{map_object.get_name()}.on("click",
@@ -259,6 +272,9 @@ class FoliumDisplay(QWidget):
 
         return map_object
 
+    """
+    Handle click action from user.
+    """
     def handleClick(self, msg):
         data = json.loads(msg)
 
@@ -268,3 +284,17 @@ class FoliumDisplay(QWidget):
             self.waypoint_count += 1
 
             self.newWaypoint.emit(float(lat), float(lng))
+
+
+"""
+Define overall QWebPage.
+"""
+class WebEnginePage(QWebEnginePage):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+
+    def javaScriptConsoleMessage(self, level, msg, line, source_id):
+        print(msg)  # Check js errors
+        if 'coordinates' in msg:
+            self.parent.handleClick(msg)

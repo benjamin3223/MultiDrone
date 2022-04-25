@@ -1,7 +1,13 @@
-import os
-import shutil
+"""
+
+Python file for all the Util functions required by the Application.
+
+"""
 
 
+"""
+Save the current mission planner state to a text file.
+"""
 def saveMission(name, offset, indoor, outdoor):
     path = "missions.txt"
 
@@ -18,6 +24,9 @@ def saveMission(name, offset, indoor, outdoor):
     return
 
 
+"""
+Read all missions in the saved missions text file and return as dictionary.
+"""
 def readMissions():
     path = "missions.txt"
 
@@ -43,6 +52,9 @@ def readMissions():
     return missions
 
 
+"""
+Convert the string form of mission arrays to a Python list variable.
+"""
 def stringToArray(string):
     if string == '[]':
         return []
@@ -67,6 +79,10 @@ def stringToArray(string):
     return array
 
 
+"""
+Apply saved offset for indoor mission to overall waypoints ready for plotting
+on GridPlanner.
+"""
 def missionToPlot(mission, offset):
     plot = []
     for wp in mission:
@@ -74,6 +90,9 @@ def missionToPlot(mission, offset):
     return plot
 
 
+"""
+Check altitude input for possible error handling.
+"""
 def checkAltitude(altitude):
     try:
         altitude_fl = float(altitude)
@@ -86,6 +105,9 @@ def checkAltitude(altitude):
         return 0
 
 
+"""
+Check speed input for possible error handling.
+"""
 def checkSpeed(speed):
     try:
         speed_fl = float(speed)
@@ -148,6 +170,9 @@ def formatDimensions(dimensions_str):
     return dimensions
 
 
+"""
+Generate string from waypoint input to display on Terminal Planner.
+"""
 def terminalString(wp_arr, outdoor):
     if outdoor:
         wp_text = "\nNext waypoint co-ordinates:        N:" + str(wp_arr[0]) + "    W:" + str(wp_arr[1]) + "    Alt:" \

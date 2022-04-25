@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# # -*- coding: utf-8 -*-
 """
 Created on Sun Feb 27 12:16:34 2022
+
+All the MAVSDK drone communication functions required by the application to run indoor and outdoor missions
+autonomously as well as retrieve useful drone telemetry data/mission progress information.
 
 @author: Benjamin
 """
@@ -12,27 +15,37 @@ from mavsdk import System
 from mavsdk.telemetry import (PositionNed)
 from mavsdk.offboard import (OffboardError, PositionNedYaw)
 from mavsdk.mission import (MissionItem, MissionPlan)
+from mavsdk.gimbal import GimbalMode, ControlMode
 
 
 address = "udp://:14540"           # For SITL testing.
 # address = "serial://COM6:56000"  # Uncomment for use with real drone and USB telemetry module
 
-
+"""
+Connect to drone with given address.
+"""
 async def connect():
 
     drone = System()
-
+    attempts = 0
     await drone.connect(system_address=address)
     print("Waiting for drone to connect...")
     async for state in drone.core.connection_state():
+        await asyncio.sleep(5)
         if state.is_connected:
             print("Drone discovered!")
-            # return True
             break
+        else:
+            return False
         
     return True
 
 
+"""
+Run an autonomous mission with optical flow based position sensing.
+
+@author Simas
+"""
 async def run_indoor(mission):
 
     drone = System()
@@ -43,12 +56,11 @@ async def run_indoor(mission):
     await drone.connect(system_address=address)
     print("Waiting for drone to connect...")
     async for state in drone.core.connection_state():
+        await asyncio.sleep(5)
         if state.is_connected:
             print("Drone discovered!")
             break
-        asyncio.sleep(1)
-        attempts += 1
-        if attempts > 10:
+        else:
             return False
 
     print("-- Arming")
@@ -91,7 +103,12 @@ async def run_indoor(mission):
     await drone.action.land()
     await drone.action.disarm()
 
+    return True
 
+
+"""
+Run an autonomous mission with GPS based positioning.
+"""
 async def run_outdoor(mission, telemetry, ret):
     
     drone = System()
@@ -99,18 +116,16 @@ async def run_outdoor(mission, telemetry, ret):
     await drone.connect(system_address=address)  # CHANGE
 
     # asyncio.ensure_future(print_battery(drone, telemetry))
-    # # asyncio.ensure_future(print_gps_info(drone, result))
     # asyncio.ensure_future(print_in_air(drone, telemetry))
     # asyncio.ensure_future(print_position(drone, telemetry))
 
     print("Waiting for drone to connect...")
     async for state in drone.core.connection_state():
+        await asyncio.sleep(5)
         if state.is_connected:
             print("Drone discovered!")
             break
-        asyncio.sleep(1)
-        attempts += 1
-        if attempts > 10:
+        else:
             return False
 
     print_mission_progress_task = asyncio.ensure_future(
@@ -170,7 +185,11 @@ async def run_outdoor(mission, telemetry, ret):
 
     await termination_task
 
+    return True
 
+"""
+Get and print out mission progress.
+"""
 async def print_mission_progress(drone):
     async for mission_progress in drone.mission.mission_progress():
         print(f"Mission progress: "
@@ -178,6 +197,9 @@ async def print_mission_progress(drone):
               f"{mission_progress.total}")
 
 
+"""
+Helper function for missions.
+"""
 async def observe_is_in_air(drone, running_tasks):
     """ Monitors whether the drone is flying or not and
     returns after landing """
@@ -199,6 +221,48 @@ async def observe_is_in_air(drone, running_tasks):
             return
 
 
+"""
+Send a module action command to the drone.
+"""
+async def module_action(command):
+    # Init the drone
+    drone = System()
+    attempts = 0
+    await drone.connect(system_address=address)
+
+    print("Waiting for drone to connect...")
+    async for state in drone.core.connection_state():
+        await asyncio.sleep(5)
+        if state.is_connected:
+            print("Drone discovered!")
+            break
+        else:
+            return False
+
+    """Changing mode to MAVLink based control."""
+    await drone.gimbal.take_control(ControlMode.PRIMARY)
+
+    module = float(command[0])
+    action = float(command[1])
+
+    """
+    Using Gimbal protocol to send messages that can be forwarded on to module.
+    
+    Setting atitude to (module, action) e.g. 
+    
+    (0.0, 0.0) = Gripper/Close
+    (0.0, 1.0) = Gripper/Open
+    
+    (1.0, 1.0) = Seeder/Rotate
+    """
+    await drone.gimbal.set_pitch_rate_and_yaw_rate(module, action)
+
+    return True
+
+
+"""
+Get drone telemetry data and store it in results array that is provided as a parameter.
+"""
 async def get_telemetry(result, outdoor):
     # Init the drone
     drone = System()
@@ -206,22 +270,25 @@ async def get_telemetry(result, outdoor):
     await drone.connect(system_address=address)
     print("Waiting for drone to connect...")
     async for state in drone.core.connection_state():
+        await asyncio.sleep(5)
         if state.is_connected:
             print("Drone discovered!")
             break
-        asyncio.sleep(1)
-        attempts += 1
-        if attempts > 10:
+        else:
             return False
+
 
     # Start the tasks
     asyncio.ensure_future(print_battery(drone, result))
-    # asyncio.ensure_future(print_gps_info(drone, result))
     asyncio.ensure_future(print_in_air(drone, result))
     if outdoor:
         asyncio.ensure_future(print_position(drone, result))
+    return True
 
 
+"""
+Battery telemetry.
+"""
 async def get_battery(result):
     
     drone = System()
@@ -236,25 +303,35 @@ async def get_battery(result):
         print(battery.remaining_percent)
         result[0] = battery.remaining_percent
         break
-    
-    # return battery.remaining_percent
 
 
+"""
+Get GPS information.
+"""
 async def get_gps_info(drone):
     async for gps_info in drone.telemetry.gps_info():
         return gps_info
 
 
+"""
+Get the status of drone is in air.
+"""
 async def get_in_air(drone):
     async for in_air in drone.telemetry.in_air():
         return in_air
 
 
+"""
+Get GPS latitude and longitude of the drone.
+"""
 async def get_position(drone):
     async for position in drone.telemetry.position():
         return position
 
 
+"""
+Print out all telemetry data.
+"""
 async def print_telemetry():
     # Init the drone
     drone = System()
@@ -267,6 +344,9 @@ async def print_telemetry():
     asyncio.ensure_future(print_position(drone))
 
 
+"""
+Print battery telemetry.
+"""
 async def print_battery(drone, result):
     async for battery in drone.telemetry.battery():
         print(f"Battery: {battery.remaining_percent}")
@@ -274,14 +354,18 @@ async def print_battery(drone, result):
         await asyncio.sleep(5)
         # break
 
-
+"""
+Print GPS telemetry.
+"""
 async def print_gps_info(drone, result):
     async for gps_info in drone.telemetry.gps_info():
         print(f"GPS info: {gps_info}")
         await asyncio.sleep(5)
         # break
 
-
+"""
+Print in air telemetry.
+"""
 async def print_in_air(drone, result):
     async for in_air in drone.telemetry.in_air():
         print(f"In air: {in_air}")
@@ -289,7 +373,9 @@ async def print_in_air(drone, result):
         await asyncio.sleep(5)
         # break
 
-
+"""
+Print GPS position telemetry.
+"""
 async def print_position(drone, result):
     async for position in drone.telemetry.position():
         print(position)

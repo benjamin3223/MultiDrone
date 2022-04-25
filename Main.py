@@ -8,6 +8,9 @@ from GUI import PlannerView
 from Controller import PlannerControl
 
 
+"""
+APPLICATION ENTRY POINT
+"""
 def main():
     """Main function."""
     # Create an instance of `QApplication`
@@ -17,6 +20,7 @@ def main():
     if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
         QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
+    # Set the style and initialise all the classes.
     planner = QApplication(sys.argv)
     file = QFile(":/dark-purple/stylesheet.qss")
     file.open(QFile.ReadOnly | QFile.Text)

@@ -6,7 +6,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QWidget
 
+"""
+Class to create the custom GridPlanner widget, allowing users to plot an indoor relative position 
+type mission with an updatable background image and scale for in context mission planning.
 
+"""
 class Grid(FigureCanvas):
 
     newWaypoint = pyqtSignal(float, float, name="newWaypoint")
@@ -14,12 +18,12 @@ class Grid(FigureCanvas):
 
     def __init__(self, parent):
 
-        self.current_path = "warehouse2.png"
+        self.current_path = "images/warehouse2.png"
         img = plt.imread(self.current_path)
 
         self.x = 36
         self.y = 21
-        self.h = 3
+        self.h = 2.75
         self.w = self.h*self.x / self.y
 
         self.f = plt.figure(constrained_layout=True)  # figsize=(self.w, self.h),
@@ -66,24 +70,27 @@ class Grid(FigureCanvas):
         self.f.canvas.mpl_connect('button_press_event', self.on_click)
         # self.f.canvas.mpl_connect('motion_notify_event', self.on_move)
 
-    # Define what to do when a mouse-click event is happening.
+    """
+    On click listener function for grid. Emits signals to Controller for handling of mission/waypoints.
+    """
     def on_click(self, event):
         if event.inaxes != self.ax:
             return
-        if event.button == 1:  # (e.g. left-click)
+
+        # Add a waypoint.
+        if event.button == 1:  # (left-click)
             if self.rectdict['round_to_int']:
-                # self.rectdict['points'] += [[round(event.xdata), round(event.ydata)]]
                 self.newWaypoint.emit(float(round(event.xdata)), float(round(event.ydata)))
             else:
-                # self.rectdict['points'] += [[event.xdata, event.ydata]]
                 self.newWaypoint.emit(float(event.xdata), float(event.ydata))
 
-        elif event.button == 3:  # (e.g. right-click)
+        # Remove last waypoint.
+        elif event.button == 3:  # (right-click)
             if len(self.rectdict['points']) >= 1:
-                # self.rectdict['points'] = self.rectdict['points'][:-1]
                 self.removeWaypoint.emit()
                 plt.draw()
 
+        # Snap to grid options.
         elif event.button == 2:  # (e.g. middle-click)
             self.rectdict['round_to_int'] = not self.rectdict['round_to_int']
             if self.rectdict['round_to_int']:
@@ -100,7 +107,9 @@ class Grid(FigureCanvas):
         else:
             self.l.set_visible(False)
 
-    # Define what to do when a motion-event is detected
+    """
+    On move listener. Not currently used due to poor responsiveness.
+    """
     def on_move(self, event):
         if event.inaxes != self.ax:
             return
@@ -112,46 +121,75 @@ class Grid(FigureCanvas):
 
         plt.draw()
 
+    """
+    Load a saved mission onto the map.
+    """
     def set_plot(self, plot):
         self.rectdict['points'] = plot
+        self.l.set_visible(True)
+        self.l.set_data(list(zip(*self.rectdict['points'])))
         plt.draw()
 
+    """
+    Add a waypoint to the grid.
+    """
     def add_point(self, x, y):
         self.rectdict['points'] += [[x, y]]
 
+    """
+    Remove waypoint from the grid.
+    """
     def remove_point(self):
         self.rectdict['points'] = self.rectdict['points'][:-1]
 
+    """
+    Clear all waypoints from the plot.
+    """
     def clear_plot(self):
         self.rectdict['points'] = []
         self.l.set_visible(False)
         plt.draw()
 
+    """
+    Change background blueprint image.
+    """
     def change_image(self, path):
         self.current_path = path
         img = plt.imread(path)
         self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=1)
         plt.draw()
 
+    """
+    Remove background image.
+    """
     def set_blank(self, show):
         if show:
             img = plt.imread(self.current_path)
             self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=1)
             plt.draw()
         else:
-            img = plt.imread("blank.png")
+            img = plt.imread("images/blank.png")
             self.ax.imshow(img, extent=[0, self.x, self.y, 0], alpha=1)
             plt.draw()
 
+    """
+    Make waypoints snap to the grid.
+    """
     def set_snap(self, snap):
         self.rectdict['round_to_int'] = snap
 
+    """
+    Increase size of plot.
+    """
     def increase_size(self):
         self.h = self.h * 1.25
         self.w = self.w * 1.25
         self.f.set_size_inches(self.w, self.h)
         plt.draw()
 
+    """
+    Decrease size of plot.
+    """
     def decrease_size(self):
         self.h = self.h / 1.25
         self.w = self.w / 1.25
@@ -159,6 +197,9 @@ class Grid(FigureCanvas):
         plt.draw()
 
 
+"""
+Embed in a QWidget for addition to Application.
+"""
 class GridWidget(QWidget):
     def __init__(self):
         super().__init__()
