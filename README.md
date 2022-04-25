@@ -1,3 +1,5 @@
+# Overview
+
 MissionPlanner Desktop Application and MAVSDK drone communication software for MultiDrone project: a self-proposed MEng group project completed at University of Strathclyde.
 
 # MultiDrone
@@ -9,11 +11,11 @@ MultiDrone is a proof-of-concept multi-purpose autonomous drone platform with a 
 
 This repository contains the Python source code for the MultiDrone Mission Planner application – a custom, cross-platform Ground Control Station software that allows users to plan both indoor and outdoor autonomous missions with connected module control and run them on a connected drone. The application is written in Python using PyQt for front-end GUI and business logic and drone communication functions using the MAVSDK Python library.
 
-Outdoor mission planning screen
+Outdoor mission planning screen:
 
 <img width="1392" alt="Screen Shot 2022-04-25 at 12 55 13 AM" src="https://user-images.githubusercontent.com/78596856/165165766-f4410b07-fd0d-42e2-a46e-95d43430c243.png">
 
-Indoor mission planning screen
+Indoor mission planning screen:
 
 <img width="1392" alt="Screen Shot 2022-04-24 at 11 07 44 PM" src="https://user-images.githubusercontent.com/78596856/165165839-0d76fa5c-07d6-4db7-97a6-bd55e7ead7c8.png">
 
