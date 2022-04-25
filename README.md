@@ -65,5 +65,5 @@ To connect to a SITL drone, the connection address in DroneFunctions can be kept
 
 High-level architecture diagram for the software is provided below:
 
-<img width="1229" alt="Screen Shot 2022-04-25 at 2 41 55 PM" src="https://user-images.githubusercontent.com/78596856/165165522-90d7b94a-5f33-46ad-b720-92895b80881f.png">
 
+<img width="929" alt="Screen Shot 2022-04-25 at 9 14 10 PM" src="https://user-images.githubusercontent.com/78596856/165167806-b8b0f9e6-fdc5-4d75-b242-3401ef08df97.png">
