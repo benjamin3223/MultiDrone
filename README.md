@@ -3,9 +3,11 @@
 MissionPlanner Desktop Application and MAVSDK drone communication software for MultiDrone project: a self-proposed MEng group project completed at University of Strathclyde.
 
 
+
 # MultiDrone
 
 MultiDrone is a proof-of-concept multi-purpose autonomous drone platform with a standardized modular mounting system designed to allow users to easily swap out different module payloads to deploy their drone for various different operations – e.g., payload delivery, crop spraying, 3D mapping etc. This concept means that drone operators could buy one drone and use it for multiple applications. It equally acts as a hardware and software platform for future application development with the advantage that developers with a new drone application idea would only have to design a module instead of building a new custom drone from the ground up.
+
 
 
 # MultiDrone Mission Planner
@@ -23,9 +25,27 @@ Indoor mission planning screen:
 
 # Dependencies
 
-The application has several library dependencies that should be installed before running. These can be installed using the 'pip install ' command. All required libraries are listed below. 
+The application has several library dependencies that should be installed before running. These can be installed using the 'pip install' command in the terminal. All required libraries are listed below. 
 
-      PyQt5, PyQtWebEngine, mavsdk, asyncio, matplotlib, folium, geocoder, json.
+      PyQt5, PyQtWebEngine, mavsdk, folium, geocoder, asyncio, matplotlib,  json
+      
+
+
+Individual commands for quick access:
+      
+      pip install PyQt5
+
+      pip install PyQtWebEngine
+
+      pip install mavsdk
+
+      pip install folium
+
+      pip install geocoder
+
+      pip install matplotlib
+
+      pip install json
 
 
 
@@ -34,7 +54,8 @@ The application has several library dependencies that should be installed before
 For best performance and to ensure that the application can access all the required dependencies, the MultiDrone Mission Planner application should be run from the terminal.
 
 The entry point to the application is Main.py so simply navigate to the directory that the repository is cloned/downloaded and run:
-'python Main.py'
+
+      python Main.py
 
 To connect to a SITL drone, the connection address in DroneFunctions can be kept the same. To connect to a real drone, the address variable should be changed to the serial port that your telemetry module is connected to. 
 
